@@ -837,6 +837,7 @@ endif()
 list(APPEND SDLMIXER_BACKENDS MP3_MPG123)
 set(SDLMIXER_MP3_MPG123_ENABLED FALSE)
 if(SDLMIXER_MP3_MPG123)
+    set(MPG123_TARGET MPG123::libmpg123)
     if(SDLMIXER_VENDORED)
         set(SDLMIXER_MP3_MPG123_ENABLED TRUE)
         message(STATUS "Using vendored mpg123")
@@ -860,7 +861,14 @@ if(SDLMIXER_MP3_MPG123)
         message(STATUS "${PROJECT_NAME}: Using mpg123 from CMake variable")
         set(SDLMIXER_MP3_MPG123_ENABLED TRUE)
     else()
-        find_package(mpg123 ${required})
+        find_package(mpg123 QUIET)
+        if(NOT mpg123_FOUND)
+            find_package(PkgConfig REQUIRED)
+            pkg_check_modules(mpg123 ${required} IMPORTED_TARGET libmpg123)
+            if(mpg123_FOUND)
+                set(MPG123_TARGET PkgConfig::mpg123)
+            endif()
+        endif()
         if(mpg123_FOUND)
             set(SDLMIXER_MP3_MPG123_ENABLED TRUE)
             message(STATUS "Using system mpg123")
@@ -875,20 +883,28 @@ if(SDLMIXER_MP3_MPG123)
         target_compile_definitions(${sdl3_mixer_target_name} PRIVATE DECODER_MP3_MPG123)
         if(SDLMIXER_MP3_MPG123_SHARED)
             if(NOT DEFINED SDLMIXER_DYNAMIC_MP3_MPG123)
+                # --> MODIFIED SECTION START <--
                 target_include_directories(${sdl3_mixer_target_name} PRIVATE
-                    $<TARGET_PROPERTY:MPG123::libmpg123,INCLUDE_DIRECTORIES>
-                    $<TARGET_PROPERTY:MPG123::libmpg123,INTERFACE_INCLUDE_DIRECTORIES>
-                    $<TARGET_PROPERTY:MPG123::libmpg123,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+                    $<TARGET_PROPERTY:${MPG123_TARGET},INCLUDE_DIRECTORIES>
+                    $<TARGET_PROPERTY:${MPG123_TARGET},INTERFACE_INCLUDE_DIRECTORIES>
+                    $<TARGET_PROPERTY:${MPG123_TARGET},INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
                 )
                 if(SDLMIXER_VENDORED)
-                  add_dependencies(${sdl3_mixer_target_name} MPG123::libmpg123)
+                  add_dependencies(${sdl3_mixer_target_name} ${MPG123_TARGET})
                 endif()
+                # --> MODIFIED SECTION END <--
             endif()
-            target_get_dynamic_library(SDLMIXER_DYNAMIC_MP3_MPG123 MPG123::libmpg123)
+            
+            # --> MODIFIED SECTION START <--
+            target_get_dynamic_library(SDLMIXER_DYNAMIC_MP3_MPG123 ${MPG123_TARGET})
+            # --> MODIFIED SECTION END <--
+            
             message(STATUS "Dynamic mpg123: ${SDLMIXER_DYNAMIC_MP3_MPG123}")
             target_compile_definitions(${sdl3_mixer_target_name} PRIVATE "MPG123_DYNAMIC=\"${SDLMIXER_DYNAMIC_MP3_MPG123}\"")
         else()
-            target_link_libraries(${sdl3_mixer_target_name} PRIVATE MPG123::libmpg123)
+            # --> MODIFIED SECTION START <--
+            target_link_libraries(${sdl3_mixer_target_name} PRIVATE ${MPG123_TARGET})
+            # --> MODIFIED SECTION END <--
         endif()
     endif()
 endif()
